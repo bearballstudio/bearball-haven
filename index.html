@@ -634,7 +634,7 @@
 
   <script>
     const SUPABASE_URL = "https://xuxksgybxxhdpxzhldho.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1eGtzZ3lieHhoZHB4emhsZGhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NzY0NjcsImV4cCI6MjA4ODM1MjQ2N30.ggWf5cUXj3Q4-kvF25TgVBVqhnthgZhob8o_KnApN7s";
+    const SUPABASE_KEY = "請貼上您的 Supabase anon key";
 
     const HERO_IMAGE = "https://xuxksgybxxhdpxzhldho.supabase.co/storage/v1/object/public/bearball-images/Grass2.jpeg";
     const ABOUT_IMAGE = "https://xuxksgybxxhdpxzhldho.supabase.co/storage/v1/object/public/bearball-images/Grass1.jpeg";
@@ -693,10 +693,35 @@
       return paragraphs.join("");
     }
 
+    function normalizePublishDate(value) {
+      if (!value) return null;
+
+      const date = new Date(value);
+      if (!Number.isNaN(date.getTime())) return date;
+
+      return null;
+    }
+
+    function sortPostsByPublishDate(posts) {
+      return [...posts].sort((a, b) => {
+        const dateA = normalizePublishDate(a.publish_date);
+        const dateB = normalizePublishDate(b.publish_date);
+
+        if (dateA && dateB) {
+          return dateB.getTime() - dateA.getTime();
+        }
+
+        if (dateA && !dateB) return -1;
+        if (!dateA && dateB) return 1;
+
+        return 0;
+      });
+    }
+
     function formatDate(dateString) {
-      if (!dateString) return "";
-      const date = new Date(dateString);
-      if (Number.isNaN(date.getTime())) return "";
+      const date = normalizePublishDate(dateString);
+      if (!date) return "";
+
       return new Intl.DateTimeFormat("zh-Hant", {
         year: "numeric",
         month: "long",
@@ -742,9 +767,7 @@
 
       const { data, error } = await supabaseClient
         .from("posts")
-        .select("*")
-        .order("publish_date", { ascending: false, nullsFirst: false })
-        .limit(6);
+        .select("*");
 
       if (error) {
         console.error("renderHomePage error:", error);
@@ -752,7 +775,9 @@
         return;
       }
 
-      const posts = data || [];
+      const sortedPosts = sortPostsByPublishDate(data || []);
+      const posts = sortedPosts.slice(0, 6);
+
       const latestPostsHtml = posts.length
         ? posts.map(buildPostCard).join("")
         : `<div class="status-box">目前避風港還在整理中，請稍後再來看看。</div>`;
@@ -854,14 +879,15 @@
         query = query.eq("mood_status", moodName);
       }
 
-      const { data, error } = await query
-        .order("publish_date", { ascending: false, nullsFirst: false });
+      const { data, error } = await query;
 
       if (error) {
         console.error("fetchPosts error:", error);
         showStatus("目前無法讀取內容，請稍後再試。");
         return;
       }
+
+      const sortedData = sortPostsByPublishDate(data || []);
 
       const heading = moodName
         ? `#${escapeHtml(moodName)}`
@@ -875,7 +901,7 @@
         ? "以下是這個分類中的內容。"
         : "把避風港裡的內容一篇一篇看完。";
 
-      if (!data || data.length === 0) {
+      if (!sortedData.length) {
         contentDiv.innerHTML = `
           <section class="section-card">
             <div class="section-head">
@@ -902,7 +928,7 @@
           </div>
 
           <div class="content-grid">
-            ${data.map(buildPostCard).join("")}
+            ${sortedData.map(buildPostCard).join("")}
           </div>
         </section>
       `;
