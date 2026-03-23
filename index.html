@@ -704,6 +704,10 @@
       }).format(date);
     }
 
+    function getDisplayDate(post) {
+      return post.publish_date || post.created_at || "";
+    }
+
     function showStatus(message) {
       contentDiv.innerHTML = `<div class="status-box">${escapeHtml(message)}</div>`;
     }
@@ -713,7 +717,7 @@
       const subject = safeText(post.subject, "");
       const mood = safeText(post.mood_status, "日常");
       const imageAlt = post.title ? `${post.title} 封面圖片` : "文章封面圖片";
-      const createdAt = formatDate(post.created_at);
+      const displayDate = formatDate(getDisplayDate(post));
       const safeId = String(post.id).replace(/'/g, "\\'");
       const safeMood = String(post.mood_status || "").replace(/'/g, "\\'");
 
@@ -725,7 +729,7 @@
           <a href="#" class="tag" onclick="filterEvent(event, null, '${safeMood}')">#${mood}</a>
           <h3>${title}</h3>
           <p class="post-excerpt">${subject}</p>
-          <div class="card-meta">${createdAt ? `發布於 ${escapeHtml(createdAt)}` : "點擊展開全文 →"}</div>
+          <div class="card-meta">${displayDate ? `發布於 ${escapeHtml(displayDate)}` : "點擊展開全文 →"}</div>
         </article>
       `;
     }
@@ -739,7 +743,9 @@
       const { data, error } = await supabaseClient
         .from("posts")
         .select("*")
+        .order("publish_date", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
         .limit(6);
 
       if (error) {
@@ -850,9 +856,10 @@
         query = query.eq("mood_status", moodName);
       }
 
-      query = query.order("created_at", { ascending: false });
-
-      const { data, error } = await query;
+      const { data, error } = await query
+        .order("publish_date", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false });
 
       if (error) {
         console.error("fetchPosts error:", error);
@@ -979,7 +986,7 @@
       const mood = safeText(data.mood_status, "日常");
       const content = formatContentToHtml(data.content);
       const category = safeText(data.category, "未分類");
-      const dateText = formatDate(data.created_at);
+      const dateText = formatDate(data.publish_date || data.created_at);
       const imageAlt = data.title ? `${data.title} 封面圖片` : "文章封面圖片";
       const safeMood = String(data.mood_status || "").replace(/'/g, "\\'");
       const safeCategory = String(data.category || "").replace(/'/g, "\\'");
