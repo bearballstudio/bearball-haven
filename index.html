@@ -682,11 +682,14 @@
       if (value === null || value === undefined || value === "") {
         return "<p>目前沒有內容。</p>";
       }
+
       const escaped = escapeHtml(String(value).trim());
+
       const paragraphs = escaped
         .split(/\n\s*\n/)
         .map(paragraph => paragraph.replace(/\n/g, "<br>"))
         .map(paragraph => `<p>${paragraph}</p>`);
+
       return paragraphs.join("");
     }
 
@@ -702,7 +705,7 @@
     }
 
     function getDisplayDate(post) {
-      return post.publish_date || post.created_at || "";
+      return post.publish_date || "";
     }
 
     function showStatus(message) {
@@ -726,7 +729,7 @@
           <a href="#" class="tag" onclick="filterEvent(event, null, '${safeMood}')">#${mood}</a>
           <h3>${title}</h3>
           <p class="post-excerpt">${subject}</p>
-          <div class="card-meta">${displayDate ? `發布於 ${escapeHtml(displayDate)}` : "點擊展開全文 →"}</div>
+          <div class="card-meta">${displayDate ? `發布於 ${escapeHtml(displayDate)}` : "尚未設定發布日期"}</div>
         </article>
       `;
     }
@@ -734,12 +737,13 @@
     async function renderHomePage() {
       currentCategory = null;
       currentMood = null;
+
       showStatus("正在整理首頁……");
 
       const { data, error } = await supabaseClient
         .from("posts")
         .select("*")
-        .order("publish_date", { ascending: false, nullsFirst: false }) // 統一排序邏輯
+        .order("publish_date", { ascending: false, nullsFirst: false })
         .limit(6);
 
       if (error) {
@@ -781,6 +785,7 @@
               <p>一個由角色、觀察、幽默與溫柔所組成的小宇宙。</p>
             </div>
           </div>
+
           <div class="intro-grid">
             <div class="intro-card">
               <h3>角色宇宙</h3>
@@ -804,6 +809,7 @@
               <p>用情緒進入故事，也許比用分類更貼近肉丸七的節奏。</p>
             </div>
           </div>
+
           <div class="mood-chips">
             <button class="mood-chip" onclick="fetchPosts(null, '平靜')">#平靜</button>
             <button class="mood-chip" onclick="fetchPosts(null, '療癒')">#療癒</button>
@@ -820,25 +826,36 @@
             </div>
             <button onclick="fetchPosts()">查看全部</button>
           </div>
+
           <div class="content-grid">
             ${latestPostsHtml}
           </div>
         </section>
       `;
+
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
     async function fetchPosts(categoryName = null, moodName = null) {
       currentCategory = categoryName;
       currentMood = moodName;
+
       showStatus("正在整理避風港……");
 
-      let query = supabaseClient.from("posts").select("*");
-      if (categoryName) query = query.eq("category", categoryName);
-      if (moodName) query = query.eq("mood_status", moodName);
+      let query = supabaseClient
+        .from("posts")
+        .select("*");
 
-      // 統一排序邏輯：只依照 publish_date 降序
-      const { data, error } = await query.order("publish_date", { ascending: false, nullsFirst: false });
+      if (categoryName) {
+        query = query.eq("category", categoryName);
+      }
+
+      if (moodName) {
+        query = query.eq("mood_status", moodName);
+      }
+
+      const { data, error } = await query
+        .order("publish_date", { ascending: false, nullsFirst: false });
 
       if (error) {
         console.error("fetchPosts error:", error);
@@ -846,14 +863,26 @@
         return;
       }
 
-      const heading = moodName ? `#${escapeHtml(moodName)}` : categoryName ? escapeHtml(categoryName) : "所有文章";
-      const subtitle = moodName ? "從這種心情出發，看看肉丸七記錄了哪些片刻。" : categoryName ? "以下是這個分類中的內容。" : "把避風港裡的內容一篇一篇看完。";
+      const heading = moodName
+        ? `#${escapeHtml(moodName)}`
+        : categoryName
+        ? escapeHtml(categoryName)
+        : "所有文章";
+
+      const subtitle = moodName
+        ? "從這種心情出發，看看肉丸七記錄了哪些片刻。"
+        : categoryName
+        ? "以下是這個分類中的內容。"
+        : "把避風港裡的內容一篇一篇看完。";
 
       if (!data || data.length === 0) {
         contentDiv.innerHTML = `
           <section class="section-card">
             <div class="section-head">
-              <div><h2>${heading}</h2><p>${subtitle}</p></div>
+              <div>
+                <h2>${heading}</h2>
+                <p>${subtitle}</p>
+              </div>
               <button onclick="renderHomePage()">回首頁</button>
             </div>
             <div class="status-box">目前沒有符合條件的文章。</div>
@@ -865,42 +894,59 @@
       contentDiv.innerHTML = `
         <section class="section-card">
           <div class="section-head">
-            <div><h2>${heading}</h2><p>${subtitle}</p></div>
+            <div>
+              <h2>${heading}</h2>
+              <p>${subtitle}</p>
+            </div>
             <button onclick="renderHomePage()">回首頁</button>
           </div>
+
           <div class="content-grid">
             ${data.map(buildPostCard).join("")}
           </div>
         </section>
       `;
+
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
     function showAboutPage() {
-      // 關於頁面內容保持不變
       contentDiv.innerHTML = `
         <article class="post-detail">
           <button onclick="renderHomePage()" style="margin-bottom:20px;">← 返回首頁</button>
           <h1>關於肉丸七</h1>
+
           <div class="img-container" style="margin-bottom: 28px;">
             ${renderImage(ABOUT_IMAGE, "關於肉丸七主視覺")}
           </div>
+
           <div class="about-content">
             <p>在一個看似平凡、卻充滿想像力的世界裡，誕生了一群圓潤可愛、帶著幽默哲思的角色——這裡，就是「肉丸宮」。</p>
             <p>肉丸宮，是「肉丸小熊們的所在之地」。它不僅是一個角色世界觀，更是一個承載創意、情感與觀察的內容宇宙。透過角色設計、幽默語錄與日常感知的交織，以簡潔卻富有層次的表現方式，傳遞一種輕盈而不流於空洞的觀看體驗。</p>
             <p>而這個世界的起點，是「肉丸七」。</p>
-            <p>作為肉丸宮的第一位誕生角色，肉丸七同時也是整個創作宇宙的敘事核心。他以第一人稱的視告觀察世界，用略帶天真卻意外精準的語氣，道出那些看似荒謬、卻直指人心的片刻。時而搗蛋，時而靜默，他不試圖解釋世界，而是陪伴觀者重新感受世界。</p>
+            <p>作為肉丸宮的第一位誕生角色，肉丸七同時也是整個創作宇宙的敘事核心。他以第一人稱的視角觀察世界，用略帶天真卻意外精準的語氣，道出那些看似荒謬、卻直指人心的片刻。時而搗蛋，時而靜默，他不試圖解釋世界，而是陪伴觀者重新感受世界。</p>
             <p>隨著肉丸七的出現，其他角色也逐漸加入——Boo、Bubble、Rabbit，以及更多尚未被命名的朋友們，一同生活在肉丸宮之中。他們各自擁有不同的性格與節奏，卻共享一種純粹的快樂：搖擺、跳動，並以自己的方式理解生活。</p>
             <p>值得一提的是，肉丸宮與肉丸七的創作，並非出自專業 3D 設計師之手。這些角色與畫面，也許不以技術的精緻見長，卻承載著創作者最直接而真誠的心意。</p>
             <p>在一次次嘗試與學習之中，這些略帶稚拙的形狀與表情，逐漸形成了屬於肉丸宮的獨特語言——不完美，但真實；不複雜，卻溫暖。</p>
             <p>而這個網站本身，也仍在持續摸索與學習之中，隨著創作的累積，一點一滴地被塑造與完善。</p>
             <p>肉丸宮的創作核心，不在於宏大的敘事，而在於那些微小卻真實的感受。透過角色、圖像與文字的融合，它持續探索一件簡單卻重要的事——在複雜的世界裡，如何保留一點輕鬆與幽默。</p>
             <p>而答案，或許就藏在肉丸七的一句話之中。</p>
-            <hr>
-            <p>In a world that appears ordinary at first glance, yet is filled with imagination, a group of round, endearing characters... [English content continues]</p>
+
+            <p>In a world that appears ordinary at first glance, yet is filled with imagination, a group of round, endearing characters—each carrying a touch of humor and quiet philosophy—was born. This is the realm known as “Bearball Studio.”</p>
+            <p>Bearball Studio is the home of the Bearball Bears. More than just a fictional universe, it is a space where creativity, emotion, and observation come together. Through character design, playful expressions, and fragments of everyday life, it presents a way of seeing that is light, layered, and never hollow.</p>
+            <p>At the center of this world stands its origin: Bearball Seven.</p>
+            <p>As the very first character to emerge from Bearball Studio, Bearball Seven also serves as the narrative core of this creative universe. Speaking in the first person, he observes the world with a tone that feels innocent yet unexpectedly precise—expressing moments that may seem absurd at first, but quietly resonate at a deeper level. At times playful, at times still, he does not attempt to explain the world, but instead accompanies the viewer in experiencing it anew.</p>
+            <p>As Bearball Seven came into being, other characters gradually joined—Boo, Bubble, Rabbit, and many more yet to be named. Together, they inhabit Bearball Studio, each with their own rhythm and personality, yet all sharing a simple, genuine joy: to sway, to move, and to understand life in their own way.</p>
+            <p>It is worth noting that the creation of Bearball Studio and Bearball Seven did not come from a professionally trained 3D designer. These characters and visuals may not strive for technical perfection, but they carry the creator’s most direct and sincere intentions.</p>
+            <p>Through continuous exploration and learning, these slightly imperfect forms and expressions have gradually shaped a unique visual language of their own—imperfect, yet authentic; simple, yet warm.</p>
+            <p>This website itself is also part of that ongoing journey. It continues to evolve, shaped little by little as the body of work grows.</p>
+            <p>The essence of Bearball Studio does not lie in grand narratives, but in small and truthful moments. Through the interplay of characters, imagery, and words, it seeks to explore a simple yet meaningful question:</p>
+            <p>In a complex world, how can we preserve a sense of lightness and quiet humor?</p>
+            <p>Perhaps the answer lies in a single line from Bearball Seven.</p>
           </div>
         </article>
       `;
+
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
@@ -912,9 +958,23 @@
 
     async function showDetail(postId) {
       showStatus("正在打開這篇文章……");
-      const { data, error } = await supabaseClient.from("posts").select("*").eq("id", postId).single();
+
+      const { data, error } = await supabaseClient
+        .from("posts")
+        .select("*")
+        .eq("id", postId)
+        .single();
+
       if (error || !data) {
-        contentDiv.innerHTML = `<div class="status-box">目前無法讀取這篇文章，請稍後再試。<div style="margin-top:16px;"><button onclick="fetchPosts(currentCategory, currentMood)">返回列表</button></div></div>`;
+        console.error("showDetail error:", error);
+        contentDiv.innerHTML = `
+          <div class="status-box">
+            目前無法讀取這篇文章，請稍後再試。
+            <div style="margin-top:16px;">
+              <button onclick="fetchPosts(currentCategory, currentMood)">返回列表</button>
+            </div>
+          </div>
+        `;
         return;
       }
 
@@ -922,7 +982,7 @@
       const mood = safeText(data.mood_status, "日常");
       const content = formatContentToHtml(data.content);
       const category = safeText(data.category, "未分類");
-      const dateText = formatDate(data.publish_date || data.created_at);
+      const dateText = formatDate(data.publish_date);
       const imageAlt = data.title ? `${data.title} 封面圖片` : "文章封面圖片";
       const safeMood = String(data.mood_status || "").replace(/'/g, "\\'");
       const safeCategory = String(data.category || "").replace(/'/g, "\\'");
@@ -930,20 +990,30 @@
       contentDiv.innerHTML = `
         <article class="post-detail">
           <button onclick="fetchPosts(currentCategory, currentMood)" style="margin-bottom:20px;">← 返回列表</button>
+
           <div class="img-container" style="border-radius: 20px; margin-bottom: 30px;">
             ${renderImage(data.cover_image, imageAlt)}
           </div>
+
           <a href="#" class="tag" onclick="filterEvent(event, null, '${safeMood}')">#${mood}</a>
+
           <h1>${title}</h1>
-          ${dateText ? `<div class="post-meta">發布時間：${escapeHtml(dateText)}</div>` : ""}
+
+          ${dateText ? `<div class="post-meta">發布時間：${escapeHtml(dateText)}</div>` : `<div class="post-meta">尚未設定發布日期</div>`}
+
           <div class="full-content">${content}</div>
+
           <hr />
+
           <p style="font-size: 14px; color: #9e9e9e;">
             探索更多：
-            <a href="#" class="category-link" onclick="filterEvent(event, '${safeCategory}', null)">${category}</a>
+            <a href="#" class="category-link" onclick="filterEvent(event, '${safeCategory}', null)">
+              ${category}
+            </a>
           </p>
         </article>
       `;
+
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
